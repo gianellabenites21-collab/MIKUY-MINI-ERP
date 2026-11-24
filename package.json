@@ -1,0 +1,17 @@
+{
+  "name": "mikuy-mini-erp",
+  "version": "1.0.0",
+  "description": "Mini-ERP para restaurante criollo Mikuy",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.4",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "helmet": "^8.1.0"
+  }
+}
