@@ -12,7 +12,7 @@ function setBusy(btn, busy, label) { btn.disabled=busy; if(label) btn.textConten
 async function init() {
   $("todayLabel").textContent = new Date().toLocaleDateString("es-PE",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
   try {
-    const cfg = await fetch("/config.json").then(r=>r.ok?r.json():null);
+    const cfg = await fetch("./config.json", {cache:"no-store"}).then(r=>r.ok?r.json():null);
     if(cfg?.SUPABASE_URL && cfg?.SUPABASE_ANON_KEY && window.supabase) {
       state.supabase = window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY);
       const {data:{session}} = await state.supabase.auth.getSession();
@@ -203,11 +203,17 @@ async function interpretVoice(){
   const transcript=$("transcript").value.trim();if(!transcript)return toast("Dicta o escribe el pedido primero.");
   $("interpretBtn").disabled=true;$("interpretBtn").textContent="Interpretando…";
   try{
-    const response=await fetch("/api/interpret-order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({transcript,menu:state.products.map(p=>({nombre:p.nombre,categoria:p.categorias?.nombre,precio:p.precio}))})});
-    const data=await response.json();if(!response.ok)throw new Error(data.error||"Error de interpretación.");
+    if(!state.supabase||!state.session)throw new Error("Inicia sesión para interpretar pedidos.");
+    const {data,error}=await state.supabase.functions.invoke("interpret-order",{body:{transcript}});
+    if(error){
+      let message=error.message;
+      if(error.context?.json){try{message=(await error.context.json()).error||message;}catch{}}
+      throw new Error(message||"No se pudo interpretar el pedido. Intenta nuevamente.");
+    }
+    if(data?.error)throw new Error(data.error);
     state.voiceItems=(data.items||[]).map(i=>({...i,product:state.products.find(p=>p.nombre.toLowerCase()===String(i.producto).toLowerCase())||null}));
     renderVoiceResult(data.mensaje||"Revisa los productos detectados.");
-  }catch(e){toast(e.message);}finally{$("interpretBtn").disabled=false;$("interpretBtn").textContent="✦ Interpretar con IA";}
+  }catch(e){state.voiceItems=[];renderVoiceResult("No se interpretó el pedido. Corrige el texto e intenta nuevamente.");toast(e.message);}finally{$("interpretBtn").disabled=false;$("interpretBtn").textContent="✦ Interpretar con IA";}
 }
 function renderVoiceResult(message){
   const valid=state.voiceItems.filter(i=>i.product);
